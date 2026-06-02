@@ -8,13 +8,24 @@ const props = defineProps({
   type:        { type: String, default: 'text' },
   disabled:    { type: Boolean, default: false },
   error:       { type: String, default: '' },
+  maxlength:   { type: Number, default: null },
+  /** Optional sanitizer function — called on every keystroke before emitting. */
+  sanitize:    { type: Function, default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
 const focused = ref(false)
 
 function onInput(e) {
-  emit('update:modelValue', e.target.value)
+  let value = e.target.value
+  if (props.sanitize) {
+    const clean = props.sanitize(value)
+    if (clean !== value) {
+      e.target.value = clean   // rewrite the DOM value if sanitized
+      value = clean
+    }
+  }
+  emit('update:modelValue', value)
 }
 </script>
 
@@ -40,13 +51,16 @@ function onInput(e) {
         :type="type"
         :placeholder="placeholder"
         :disabled="disabled"
+        :maxlength="maxlength ?? undefined"
         class="sd-field__input"
         @input="onInput"
         @focus="focused = true"
         @blur="focused = false"
       />
 
-      <span v-if="focused" class="sd-field__cursor" aria-hidden="true" />
+      <span v-if="$slots.action" class="sd-field__action">
+        <slot name="action" />
+      </span>
     </div>
 
     <span v-if="error" class="sd-field__error">{{ error }}</span>
@@ -122,17 +136,11 @@ function onInput(e) {
 .sd-field__input::placeholder { color: var(--sd-fg3); }
 .sd-field__input:disabled { cursor: not-allowed; }
 
-.sd-field__cursor {
-  width: 2px;
-  height: 18px;
-  background: var(--sd-azure);
-  border-radius: 1px;
+.sd-field__action {
   flex: none;
-  animation: sd-blink 1s step-end infinite;
-}
-@keyframes sd-blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
+  display: inline-flex;
+  align-items: center;
+  margin-left: -4px;
 }
 
 .sd-field__error {

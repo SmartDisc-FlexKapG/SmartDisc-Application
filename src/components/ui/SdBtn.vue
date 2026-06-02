@@ -44,6 +44,7 @@ defineProps({
   font-size: 15px;
   padding: 13px 22px;
   min-height: 48px;
+  margin-top: 5px;
 }
 .sd-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .sd-btn:not(:disabled):active { transform: scale(0.97); }
