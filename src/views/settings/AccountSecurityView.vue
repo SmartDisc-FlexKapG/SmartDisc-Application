@@ -19,11 +19,7 @@ const faceId = ref(true)
 
 <template>
   <AppLayout :tabs="false">
-    <SdAppBar back title="Account &amp; security">
-      <template #action>
-        <button class="save-btn">Save</button>
-      </template>
-    </SdAppBar>
+    <SdAppBar back title="Account &amp; security"></SdAppBar>
 
     <div class="account-scroll">
       <!-- Avatar -->
@@ -66,17 +62,6 @@ const faceId = ref(true)
             <div class="pref-sub">Unlock SmartDisc with biometrics</div>
           </div>
           <SdToggle v-model="faceId" />
-        </div>
-      </div>
-
-      <!-- 2FA -->
-      <p class="section-label">Two-factor authentication</p>
-      <div class="twofa-card">
-        <div class="list-icon list-icon--gold"><ShieldCheck :size="16" :stroke-width="1.75" /></div>
-        <div class="pref-copy">
-          <div class="pref-title">2FA is on</div>
-          <div class="pref-sub" style="margin-bottom: 10px;">Codes via authenticator app · last used today.</div>
-          <SdBtn variant="ghost" size="sm">Manage</SdBtn>
         </div>
       </div>
 

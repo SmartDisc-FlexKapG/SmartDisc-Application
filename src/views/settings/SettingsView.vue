@@ -32,9 +32,6 @@ async function handleSignOut() {
         <div class="profile-name">{{ user?.name ?? 'Alex Rivera' }}</div>
         <div class="profile-email">{{ user?.email ?? 'alex@smartdisc.io' }}</div>
       </div>
-      <SdChip tone="gold">
-        Pro
-      </SdChip>
     </div>
 
     <div class="settings-groups">
@@ -45,7 +42,6 @@ async function handleSignOut() {
           <RouterLink to="/settings/account" class="list-row">
             <div class="list-icon"><User :size="16" :stroke-width="1.75" /></div>
             <span class="list-row__label">Account &amp; security</span>
-            <SdChip tone="gold">2FA</SdChip>
             <ChevronRight :size="16" style="color: var(--sd-fg3);" />
           </RouterLink>
           <RouterLink to="/settings/notifications" class="list-row">
