@@ -1,25 +1,61 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Camera, User, Mail, KeyRound, Smartphone, ShieldCheck, Monitor, AlertTriangle, LogOut, ChevronRight, X } from 'lucide-vue-next'
+import { Camera, User, Mail, KeyRound, Smartphone, Monitor, AlertTriangle, LogOut, ChevronRight, X, Eye, EyeOff } from 'lucide-vue-next'
 import AppLayout from '@/layouts/AppLayout.vue'
 import SdAppBar from '@/components/ui/SdAppBar.vue'
 import SdAvatar from '@/components/ui/SdAvatar.vue'
-import { SdBtn, SdField, SdChip, SdToggle } from '@/components/ui'
+import { SdBtn, SdField, SdChip, SdToggle, SdBottomSheet, SdPasswordHint } from '@/components/ui'
 import { useAuth } from '@/composables/useAuth'
-import { sanitizeName, sanitizeEmail } from '@/utils/sanitize'
+import { sanitizeName, sanitizeEmail, sanitizePassword } from '@/utils/sanitize'
+import { required, password as validatePassword } from '@/utils/validate'
 
 const router = useRouter()
 const { user } = useAuth()
 
-const name  = ref(user?.value?.name  ?? 'Alex Rivera')
-const email = ref(user?.value?.email ?? 'alex@smartdisc.io')
+const name   = ref(user?.value?.name  ?? 'Alex Rivera')
+const email  = ref(user?.value?.email ?? 'alex@smartdisc.io')
 const faceId = ref(true)
+
+// ── Change password sheet ─────────────────────────────────────────────────
+const passwordSheet  = ref(false)
+const currentPw      = ref('')
+const newPw          = ref('')
+const confirmPw      = ref('')
+const pwLoading      = ref(false)
+const pwError        = ref('')
+
+const pwSaveDisabled = computed(() =>
+  !currentPw.value ||
+  !!validatePassword(newPw.value) ||
+  newPw.value !== confirmPw.value
+)
+
+function openPasswordSheet() {
+  currentPw.value = ''
+  newPw.value     = ''
+  confirmPw.value = ''
+  pwError.value   = ''
+  passwordSheet.value = true
+}
+
+async function handlePasswordChange() {
+  if (pwSaveDisabled.value) return
+  if (newPw.value !== confirmPw.value) {
+    pwError.value = 'Passwords do not match'
+    return
+  }
+  pwLoading.value = true
+  pwError.value   = ''
+  await new Promise(r => setTimeout(r, 1000))
+  pwLoading.value = false
+  passwordSheet.value = false
+}
 </script>
 
 <template>
   <AppLayout :tabs="false">
-    <SdAppBar back title="Account &amp; security"></SdAppBar>
+    <SdAppBar back title="Account &amp; security" />
 
     <div class="account-scroll">
       <!-- Avatar -->
@@ -47,16 +83,16 @@ const faceId = ref(true)
       <!-- Password -->
       <p class="section-label">Password</p>
       <div class="list">
-        <div class="pref-row">
-          <div class="list-icon"><KeyRound :size="16" :stroke-width="1.75" /></div>
+        <button class="pref-row pref-row--tap" @click="openPasswordSheet">
+          <KeyRound :size="18" style="color: var(--sd-ink);" :stroke-width="1.75" />
           <div class="pref-copy">
             <div class="pref-title">Change password</div>
             <div class="pref-sub">Last changed 3 months ago</div>
           </div>
           <ChevronRight :size="16" style="color: var(--sd-fg3);" />
-        </div>
+        </button>
         <div class="pref-row">
-          <div class="list-icon"><Smartphone :size="16" :stroke-width="1.75" /></div>
+          <Smartphone :size="18" style="color: var(--sd-ink);" :stroke-width="1.75" />
           <div class="pref-copy">
             <div class="pref-title">Sign in with Face ID</div>
             <div class="pref-sub">Unlock SmartDisc with biometrics</div>
@@ -69,7 +105,7 @@ const faceId = ref(true)
       <p class="section-label">Active sessions</p>
       <div class="list">
         <div class="pref-row">
-          <div class="list-icon"><Smartphone :size="16" :stroke-width="1.75" /></div>
+          <Smartphone :size="18" style="color: var(--sd-ink);" :stroke-width="1.75" />
           <div class="pref-copy">
             <div class="pref-title">iPhone 15 · this device</div>
             <div class="pref-sub">Berlin · active now</div>
@@ -77,7 +113,7 @@ const faceId = ref(true)
           <SdChip tone="gold">Current</SdChip>
         </div>
         <div class="pref-row">
-          <div class="list-icon"><Monitor :size="16" :stroke-width="1.75" /></div>
+          <Monitor :size="18" style="color: var(--sd-ink);" :stroke-width="1.75" />
           <div class="pref-copy">
             <div class="pref-title">MacBook Pro · Safari</div>
             <div class="pref-sub">Berlin · 2 days ago</div>
@@ -92,29 +128,59 @@ const faceId = ref(true)
       </SdBtn>
 
       <!-- Delete account -->
-      <div class="danger-row">
-        <AlertTriangle :size="18" style="color: var(--sd-danger); flex: none;" />
-        <span class="danger-label">Delete account</span>
-        <ChevronRight :size="16" style="color: var(--sd-danger);" />
-      </div>
+      <SdBtn variant="ghost" size="md" block class="danger-btn">
+        <template #icon-left><AlertTriangle :size="16" /></template>
+        Delete account
+      </SdBtn>
 
       <div style="height: 40px;" />
     </div>
+
+    <!-- Change Password sheet -->
+    <SdBottomSheet v-model="passwordSheet" title="Change password">
+      <div class="pw-stack">
+        <SdField
+          v-model="currentPw"
+          label="Current password"
+          type="password"
+          :sanitize="sanitizePassword"
+          :maxlength="128"
+        />
+        <SdField
+          v-model="newPw"
+          label="New password"
+          type="password"
+          :sanitize="sanitizePassword"
+          :maxlength="128"
+        />
+        <SdPasswordHint :value="newPw" />
+        <SdField
+          v-model="confirmPw"
+          label="Repeat new password"
+          type="password"
+          :sanitize="sanitizePassword"
+          :maxlength="128"
+          :error="confirmPw && newPw !== confirmPw ? 'Passwords do not match' : ''"
+        />
+        <p v-if="pwError" class="pw-error">{{ pwError }}</p>
+        <div class="pw-actions">
+          <SdBtn variant="ghost" size="md" style="flex:1;" @click="passwordSheet = false">Cancel</SdBtn>
+          <SdBtn
+            variant="primary"
+            size="md"
+            style="flex:1;"
+            :disabled="pwSaveDisabled || pwLoading"
+            @click="handlePasswordChange"
+          >
+            {{ pwLoading ? 'Saving…' : 'Update password' }}
+          </SdBtn>
+        </div>
+      </div>
+    </SdBottomSheet>
   </AppLayout>
 </template>
 
 <style scoped>
-.save-btn {
-  font-family: var(--sd-font-display);
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--sd-ink);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 8px;
-}
-
 .account-scroll {
   display: flex;
   flex-direction: column;
@@ -178,24 +244,16 @@ const faceId = ref(true)
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
 }
 .pref-row + .pref-row { border-top: 1px solid rgba(16, 42, 87, .07); }
 
-.list-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: linear-gradient(140deg, #1d3d72, #0a1c3d);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-}
-.list-icon--gold {
-  background: var(--sd-gold-grad);
-  color: #5a4416;
-}
+.pref-row--tap { cursor: pointer; }
+.pref-row--tap:hover  { background: rgba(16, 42, 87, .03); }
+.pref-row--tap:active { background: rgba(16, 42, 87, .07); }
 
 .pref-copy { flex: 1; min-width: 0; }
 .pref-title {
@@ -213,19 +271,6 @@ const faceId = ref(true)
   line-height: 1.3;
 }
 
-.twofa-card {
-  background: var(--sd-glass-light-bg);
-  border: 1px solid var(--sd-glass-light-border);
-  -webkit-backdrop-filter: var(--sd-glass-blur);
-          backdrop-filter: var(--sd-glass-blur);
-  border-radius: var(--sd-r-lg);
-  box-shadow: var(--sd-shadow-glass);
-  padding: 14px;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
 .icon-x {
   background: none;
   border: none;
@@ -236,20 +281,25 @@ const faceId = ref(true)
   padding: 0;
 }
 
-.danger-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(192, 88, 78, .08);
-  border: 1px solid rgba(192, 88, 78, .20);
-  border-radius: var(--sd-r-md);
-  padding: 14px;
-  margin-top: 4px;
+.danger-btn {
+  color: var(--sd-danger) !important;
+  border-color: rgba(192, 88, 78, .30) !important;
 }
-.danger-label {
-  flex: 1;
+.danger-btn:hover { background: rgba(192, 88, 78, .04) !important; }
+
+/* Password sheet */
+.pw-stack { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
+
+.pw-error {
   font-family: var(--sd-font-body);
   font-size: 13px;
   color: var(--sd-danger);
+  margin: 0;
+}
+
+.pw-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
 }
 </style>
