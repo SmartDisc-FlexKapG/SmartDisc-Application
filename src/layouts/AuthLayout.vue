@@ -75,5 +75,7 @@ defineProps({
   display: flex;
   flex-direction: column;
   padding: 0 22px;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 </style>

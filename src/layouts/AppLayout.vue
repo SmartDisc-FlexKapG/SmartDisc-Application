@@ -84,5 +84,6 @@ defineProps({
   z-index: 1;
   width: 100%;
   max-width: 390px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 </style>

@@ -10,38 +10,72 @@ const emit = defineEmits(['update:modelValue'])
 
 function close() { emit('update:modelValue', false) }
 
-// Swipe-to-dismiss
-const panel     = ref(null)
-const dragStart = ref(0)
-const dragging  = ref(false)
-const dragY     = ref(0)
+// ── Swipe-to-dismiss ─────────────────────────────────────────────────────────
+const panel       = ref(null)
+const dragStart   = ref(0)
+const dragging    = ref(false)
+const dragY       = ref(0)
+const velocityY   = ref(0)
+const lastTouchY  = ref(0)
+const lastTouchMs = ref(0)
 
-function onTouchStart(e) {
-  dragStart.value = e.touches[0].clientY
-  dragging.value  = true
-  dragY.value     = 0
+function onDragStart(e) {
+  dragStart.value   = e.touches[0].clientY
+  lastTouchY.value  = e.touches[0].clientY
+  lastTouchMs.value = Date.now()
+  dragging.value    = true
+  dragY.value       = 0
+  velocityY.value   = 0
+  if (panel.value) panel.value.style.transition = 'none'
 }
-function onTouchMove(e) {
+
+function onDragMove(e) {
   if (!dragging.value) return
-  const delta = e.touches[0].clientY - dragStart.value
+  const currentY = e.touches[0].clientY
+  const now      = Date.now()
+  const dt       = now - lastTouchMs.value
+  if (dt > 0) velocityY.value = (currentY - lastTouchY.value) / dt
+  lastTouchY.value  = currentY
+  lastTouchMs.value = now
+
+  const delta = currentY - dragStart.value
   if (delta > 0) {
     dragY.value = delta
-    if (panel.value) panel.value.style.transform = `translateY(${delta}px)`
+    if (panel.value)
+      panel.value.style.transform = `translateX(-50%) translateY(${delta}px)`
   }
-}
-function onTouchEnd() {
-  dragging.value = false
-  if (dragY.value >= 60) {
-    close()
-  } else {
-    if (panel.value) panel.value.style.transform = ''
-  }
-  dragY.value = 0
 }
 
-// Reset panel transform when sheet opens
+function onDragEnd() {
+  if (!dragging.value) return
+  dragging.value = false
+
+  // Dismiss on large drag OR fast downward flick
+  if (dragY.value >= 60 || velocityY.value > 0.4) {
+    if (panel.value) panel.value.style.transition = ''
+    close()
+  } else {
+    // Snap back with spring
+    if (panel.value) {
+      panel.value.style.transition = 'transform 280ms cubic-bezier(0.32, 0.72, 0, 1)'
+      panel.value.style.transform  = 'translateX(-50%)'
+      setTimeout(() => {
+        if (panel.value) {
+          panel.value.style.transition = ''
+          panel.value.style.transform  = ''
+        }
+      }, 280)
+    }
+  }
+  dragY.value    = 0
+  velocityY.value = 0
+}
+
 watch(() => props.modelValue, (open) => {
-  if (open && panel.value) panel.value.style.transform = ''
+  if (open && panel.value) {
+    panel.value.style.transition = ''
+    panel.value.style.transform  = ''
+  }
 })
 </script>
 
@@ -55,17 +89,24 @@ watch(() => props.modelValue, (open) => {
         v-if="modelValue"
         ref="panel"
         class="sheet-panel"
-        @touchstart="onTouchStart"
-        @touchmove.passive="onTouchMove"
-        @touchend="onTouchEnd"
       >
-        <div class="sheet-pill" />
-        <div class="sheet-header">
-          <span class="sheet-title">{{ title }}</span>
-          <button class="sheet-close" @click="close">
-            <X :size="18" :stroke-width="1.75" />
-          </button>
+        <!-- Drag handle zone — touch events only here so body can scroll freely -->
+        <div
+          class="sheet-drag-zone"
+          @touchstart.passive="onDragStart"
+          @touchmove.passive="onDragMove"
+          @touchend.passive="onDragEnd"
+          @touchcancel.passive="onDragEnd"
+        >
+          <div class="sheet-pill" />
+          <div class="sheet-header">
+            <span class="sheet-title">{{ title }}</span>
+            <button class="sheet-close" @click="close">
+              <X :size="18" :stroke-width="1.75" />
+            </button>
+          </div>
         </div>
+
         <div class="sheet-body">
           <slot />
         </div>
@@ -103,8 +144,18 @@ watch(() => props.modelValue, (open) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Extend behind home indicator on iOS */
   padding-bottom: env(safe-area-inset-bottom, 0);
+  will-change: transform;
 }
+
+.sheet-drag-zone {
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sheet-drag-zone:active { cursor: grabbing; }
 
 .sheet-pill {
   width: 36px;
@@ -112,14 +163,12 @@ watch(() => props.modelValue, (open) => {
   border-radius: 999px;
   background: rgba(16, 42, 87, .18);
   margin: 12px auto 0;
-  flex-shrink: 0;
 }
 
 .sheet-header {
   display: flex;
   align-items: center;
   padding: 14px 20px 12px;
-  flex-shrink: 0;
 }
 
 .sheet-title {
@@ -142,6 +191,7 @@ watch(() => props.modelValue, (open) => {
   border-radius: 999px;
   transition: color var(--sd-dur-fast) var(--sd-ease-out),
               background var(--sd-dur-fast) var(--sd-ease-out);
+  -webkit-tap-highlight-color: transparent;
 }
 .sheet-close:hover { color: var(--sd-fg1); background: rgba(16,42,87,.06); }
 
@@ -149,6 +199,7 @@ watch(() => props.modelValue, (open) => {
   overflow-y: auto;
   padding: 0 20px 24px;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Transitions */
